@@ -6,6 +6,12 @@
 
 A grab-bag of scripts to alter, improve, or generally unfudge websites that should know better.
 
+I use Tampermonkey so... these are only tested on that. Your mileage may vary with other managers.
+
+## The scripts
+
+-   [CodePen.md - Copy as Markdown](/scripts/codepen-md/) - One-click (or hotkey) CodePen→Markdown: HTML/CSS/JS fences with optional attribution; raw or compiled output (SCSS→CSS, TS/Babel→JS); customizable shortcut; persistent preferences.
+
 ## Names I almost used for this repo
 
 -   Confuserscripts 🤨
@@ -13,13 +19,19 @@ A grab-bag of scripts to alter, improve, or generally unfudge websites that shou
 -   Misuserscripts 🚩
 -   patch-adams.js 🩹
 
+## External profiles
+
+This [repository](https://github.com/AstroMash/userscripts) will always be the canonical source for these scripts, but you can also find them on:
+
+-   [Greasy Fork](https://greasyfork.org/en/users/1449331-astromash)
+
 ## Installation (90-second version)
 
 1. Install a userscript manager:
     - ⭐️ [Tampermonkey](https://www.tampermonkey.net/)
     - [Violentmonkey](https://violentmonkey.github.io/)
     - [Greasemonkey](https://www.greasespot.net/) (Firefox)
-2. Find a script in this repo → open the **Raw** `.user.js`.
+2. Find a script in this repo → open the **Raw** `user.js`.
    ![The raw button in GitHub](raw.png)
 3. Your manager should prompt you (probably) → **Install** → done.
 4. If it explodes, my bad. If it works, you’re welcome.
