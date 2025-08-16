@@ -8,7 +8,7 @@
 
 ## ✨ What you get
 
-**Example output (click to toggle)**
+**Example output**
 
     > Source: [Glassmorphism Card by AstroMash](https://codepen.io/astromash/pen/abc123)
 
@@ -74,26 +74,26 @@ Click the **gear icon** to reveal a dark-themed options panel:
 
 #### **🔧 Copy Options**
 
-- **Copy compiled code** — Get processed output (SCSS→CSS or TS→JS, for example)
-- **Add attribution header** — Include source link with title & author
+-   **Copy compiled code** — Get processed output (SCSS→CSS or TS→JS, for example)
+-   **Add attribution header** — Include source link with title & author
 
 #### **⌨️ Keyboard Shortcut**
 
-- **Enable/disable** — Toggle keyboard activation
-- **Customize combo** — Click Edit to set your perfect shortcut
-- **Visual feedback** — See your current combo in a styled badge
+-   **Enable/disable** — Toggle keyboard activation
+-   **Customize combo** — Click Edit to set your perfect shortcut
+-   **Visual feedback** — See your current combo in a styled badge
 
 ---
 
 ## 🎨 Premium Features
 
-- **Dark glassmorphism UI** — Subtle vibe, smooth flow
-- **Split button design** — Main action + gear for options
-- **Toast notifications** — Clear, non-intrusive feedback
-- **Collapsible shortcut editor** — Compact when closed, full controls when open
-- **Smart Escape handling** — Closes shortcut editor → panel → overlay in order
-- **Preview frame support** — Shortcut works even when preview has focus
-- **Sync everywhere** — Settings persist and sync to preview via `postMessage`
+-   **Dark glassmorphism UI** — Subtle vibe, smooth flow
+-   **Split button design** — Main action + gear for options
+-   **Toast notifications** — Clear, non-intrusive feedback
+-   **Collapsible shortcut editor** — Compact when closed, full controls when open
+-   **Smart Escape handling** — Closes shortcut editor → panel → overlay in order
+-   **Preview frame support** — Shortcut works even when preview has focus
+-   **Sync everywhere** — Settings persist and sync to preview via `postMessage`
 
 ---
 
@@ -105,27 +105,27 @@ Click the **gear icon** to reveal a dark-themed options panel:
 
 **Permissions explained:**
 
-- `GM_setClipboard` — Direct clipboard access when allowed
-- `GM_notification` — Optional desktop notifications
-- `GM_addStyle` — Injects the UI
-- `GM_registerMenuCommand` — Right-click menu options
-- `unsafeWindow` — Reads CodePen’s editor state
+-   `GM_setClipboard` — Direct clipboard access when allowed
+-   `GM_notification` — Optional desktop notifications
+-   `GM_addStyle` — Injects the UI
+-   `GM_registerMenuCommand` — Right-click menu options
+-   `unsafeWindow` — Reads CodePen’s editor state
 
 ---
 
 ## 💡 Pro Tips
 
-- **Windows users**: Skip Win (Meta) combos — the OS often intercepts them. Prefer Ctrl/Alt/Shift.
-- **Preview frame**: Your shortcut works there too — the preview asks the parent for the Markdown.
-- **Language tags**: Compiled = standard (`javascript`, `css`, `html`). Raw = preprocessor (`scss`, `typescript`).
-- **Clipboard blocked?**: A one-click overlay appears to complete the copy.
+-   **Windows users**: Skip Win (Meta) combos — the OS often intercepts them. Prefer Ctrl/Alt/Shift.
+-   **Preview frame**: Your shortcut works there too — the preview asks the parent for the Markdown.
+-   **Language tags**: Compiled = standard (`javascript`, `css`, `html`). Raw = preprocessor (`scss`, `typescript`).
+-   **Clipboard blocked?**: A one-click overlay appears to complete the copy.
 
 ---
 
 ## 📋 Compatibility
 
-- **Browsers**: Chrome, Edge, Firefox (with userscript manager)
-- **Sites**: `codepen.io/*/pen/*` and `cdpn.io/*` (preview)
+-   **Browsers**: Chrome, Edge, Firefox (with userscript manager)
+-   **Sites**: `codepen.io/*/pen/*` and `cdpn.io/*` (preview)
 
 ---
 
@@ -133,15 +133,15 @@ Click the **gear icon** to reveal a dark-themed options panel:
 
 **2.3.0**
 
-- New compact shortcut editor: collapsed badge row with expandable capture/config.
-- Instant preview sync: options & shortcuts broadcast to `cdpn.io` via `postMessage`.
-- Cleaner labels for special keys (F-keys, arrows, digits).
-- Safer clipboard fallback with a one-click overlay.
+-   New compact shortcut editor: collapsed badge row with expandable capture/config.
+-   Instant preview sync: options & shortcuts broadcast to `cdpn.io` via `postMessage`.
+-   Cleaner labels for special keys (F-keys, arrows, digits).
+-   Safer clipboard fallback with a one-click overlay.
 
 **2.x**
 
-- Split copy/gear button, sticky toasts, processed-vs-raw toggle, attribution header toggle.
-- Preview-frame hotkey support and a robust parent↔preview messaging bridge.
+-   Split copy/gear button, sticky toasts, processed-vs-raw toggle, attribution header toggle.
+-   Preview-frame hotkey support and a robust parent↔preview messaging bridge.
 
 ---
 
