@@ -1,9 +1,4 @@
-<h1>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" style="width: 1em; height: 1em; vertical-align: -0.125em; fill: currentColor;">
-    <path fill="currentColor" d="M224,0H32C14.43,0,0,14.43,0,32v192c0,17.57,14.43,32,32,32h192c17.57,0,32-14.43,32-32V32c0-17.57-14.43-32-32-32ZM223.93,216.59H31.93v-32.92h192.13l-.13,32.92ZM224.07,177.67h-28.38v-26.79l28.38.02v26.77ZM223.93,144.38H31.93v-32.92h192.13l-.13,32.92ZM31.93,105.84v-26.79l28.38.02v26.77h-28.38ZM223.93,72.33H31.93v-32.92h192.13l-.13,32.92Z"/>
-</svg>
-&nbsp;Slidebar — GitHub PR Sidebar Enhancer
-</h1>
+# 🎚️ Slidebar — GitHub PR Sidebar Enhancer
 
 > [!IMPORTANT]
 > GitHub actually addressed some of these issues! As of **August 2025**, their "Files Changed" experience update is in preview and includes:
@@ -54,19 +49,13 @@ Resize it. See full file names. Scroll when needed. You know, basic stuff GitHub
 3. **Confirm** installation when prompted
 4. **Navigate** to any GitHub PR or compare page
 5. **Hover** between the sidebar and content area to reveal the draggable edge
-6. **Look** for the Slidebar icon in the toolbar to access settings
+6. **Look** for the [Slidebar icon](icon.png) in the toolbar to access settings
 
 ---
 
 ## ⚙️ Configuration
 
-<div>
-Click the Slidebar icon [
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" style="width: 1em; height: 1em; vertical-align: -0.125em; fill: currentColor;">
-    <path fill="currentColor" d="M224,0H32C14.43,0,0,14.43,0,32v192c0,17.57,14.43,32,32,32h192c17.57,0,32-14.43,32-32V32c0-17.57-14.43-32-32-32ZM223.93,216.59H31.93v-32.92h192.13l-.13,32.92ZM224.07,177.67h-28.38v-26.79l28.38.02v26.77ZM223.93,144.38H31.93v-32.92h192.13l-.13,32.92ZM31.93,105.84v-26.79l28.38.02v26.77h-28.38ZM223.93,72.33H31.93v-32.92h192.13l-.13,32.92Z"/>
-</svg>
-] in the toolbar to open the settings modal.
-</div>
+Click the [Slidebar icon](icon.png) in the toolbar to open the settings modal.
 
 ### Options
 
