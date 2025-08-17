@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CodePen.md - Copy as Markdown
 // @namespace    https://github.com/AstroMash/userscripts
-// @version      2.3.0
+// @version      2.3.1
 // @description  One-click (or hotkey) CodePen→Markdown: HTML/CSS/JS fences with optional attribution; raw or compiled output (SCSS→CSS, TS/Babel→JS); customizable shortcut; persistent preferences.
 // @author       AstroMash
 // @match        https://codepen.io/*/pen/*
