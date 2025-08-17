@@ -124,7 +124,7 @@ Click the **gear icon** to reveal a dark-themed options panel:
 
 ## 📋 Compatibility
 
-- **Browsers**: Chrome, Edge, Firefox (with userscript manager)
+- **Browsers**: Chrome, Edge, Firefox, Safari, Opera, Maxthon (all the browsers I know of with userscript managers)
 - **Sites**: `codepen.io/*/pen/*` and `cdpn.io/*` (preview)
 
 ---

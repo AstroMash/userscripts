@@ -1,14 +1,17 @@
 // ==UserScript==
-// @name         SlideBar - GitHub PR Sidebar Enhancer
+// @name         Slidebar - GitHub PR Sidebar Enhancer
 // @namespace    https://github.com/AstroMash/userscripts
-// @version      0.3.0
-// @description  Pop the trunc on 'em - Make the PR sidebar not suck so much (resize, scroll, etc)
+// @version      1.0.0
+// @description  Make GitHub's PR sidebar actually usable - resizable, with tooltips and optional horizontal scrolling. Settings are persistent and configurable via a button on the toolbar.
 // @author       AstroMash
 // @icon         https://raw.githubusercontent.com/astromash/userscripts/main/scripts/github-slidebar/icon.png
 // @match        https://github.com/*/pull/*
 // @match        https://github.com/*/pulls/*
+// @match        https://github.com/*/compare/*
+// @run-at       document-idle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addStyle
 // @license      MIT
 // @downloadURL  https://raw.githubusercontent.com/astromash/userscripts/main/scripts/github-slidebar/user.js
 // @updateURL    https://raw.githubusercontent.com/astromash/userscripts/main/scripts/github-slidebar/meta.js
@@ -17,23 +20,254 @@
 (function () {
     'use strict';
 
-    const defaultConfig = {
+    const APP_NAME = 'Slidebar';
+    const STORAGE_KEY = 'slidebarConfig';
+    const MAX_INIT_ATTEMPTS = 10;
+
+    const DEFAULT_CONFIG = {
         enableResizing: true,
         enableTooltips: true,
         enableHorizontalScroll: false,
-        sidebarWidth: 300,
+        sidebarWidth: 296, // GitHub's default
+        minWidth: 200,
+        maxWidth: 600,
     };
 
-    let config = GM_getValue('slidebarConfig', defaultConfig);
+    let config = { ...DEFAULT_CONFIG, ...GM_getValue(STORAGE_KEY, {}) };
+    let initAttempts = 0;
+    let configButtonAttempts = 0;
+    let configButtonAdded = false;
+    let currentObserver = null;
+    let resizeCleanup = null;
+    let isInitialized = false;
 
-    window.addEventListener('load', function () {
-        init();
-    });
+    if (typeof GM_addStyle === 'function') {
+        GM_addStyle(`
+            /* Resize handle */
+            /*****************/
+
+            .slidebar-resize-handle {
+                position: absolute;
+                width: 4px;
+                height: 100%;
+                cursor: col-resize;
+                z-index: 100;
+                background: transparent;
+                transition: background 0.2s ease;
+            }
+            .slidebar-resize-handle:hover,
+            .slidebar-resize-handle.dragging {
+                background: rgba(59, 130, 246, 0.5);
+            }
+
+            /* Config button */
+            /*****************/
+
+            .slidebar-config-btn {
+                background: none;
+                border: none;
+                padding: 4px;
+                cursor: pointer;
+                color: var(--fgColor-muted);
+                transition: color 0.2s ease;
+            }
+            .slidebar-config-btn:hover {
+                color: var(--fgColor-accent);
+            }
+
+            /* Modal */
+            /*********/
+
+            .slidebar-modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.2s ease;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+
+            .slidebar-modal {
+                border-color: var(--borderColor-default, var(--color-border-default));
+                box-shadow: var(--shadow-floating-legacy, var(--color-shadow-large));
+                border-radius: 8px;
+                padding: 0;
+                min-width: 320px;
+                max-width: 420px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                animation: slideUp 0.3s ease;
+            }
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+
+            .slidebar-modal-header {
+                padding: 16px 20px;
+                border-bottom: 1px solid var(--color-border-default);
+                font-size: 16px;
+                font-weight: 600;
+            }
+
+            .slidebar-modal-body {
+                padding: 20px;
+            }
+
+            .slidebar-modal-footer {
+                padding: 16px 20px;
+                border-top: 1px solid var(--color-border-default);
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+
+            .slidebar-checkbox-label {
+                display: flex;
+                align-items: flex-start;
+                margin-bottom: 12px;
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .slidebar-checkbox-label input {
+                margin-right: 8px;
+                margin-top: 2px;
+                cursor: pointer;
+            }
+
+            .slidebar-checkbox-text {
+                flex: 1;
+            }
+
+            .slidebar-checkbox-title {
+                font-weight: 500;
+                margin-bottom: 2px;
+                color: var(--color-fg-default);
+            }
+
+            .slidebar-checkbox-desc {
+                font-size: 12px;
+                color: var(--color-fg-muted);
+            }
+
+            .slidebar-width-control {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid var(--color-border-muted);
+            }
+
+            .slidebar-width-input {
+                width: 80px;
+                padding: 4px 8px;
+                border: 1px solid var(--color-border-default);
+                border-radius: 6px;
+                background: var(--color-canvas-subtle);
+                color: var(--color-fg-default);
+            }
+
+            .slidebar-btn {
+                padding: 5px 16px;
+                border-radius: 6px;
+                border: 1px solid var(--color-btn-border);
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .slidebar-btn-primary {
+                background: var(--color-btn-primary-bg);
+                color: var(--color-btn-primary-text);
+                border-color: var(--color-btn-primary-border);
+            }
+
+            .slidebar-btn-primary:hover {
+                background: var(--color-btn-primary-hover-bg);
+            }
+
+            .slidebar-btn-secondary {
+                background: var(--color-btn-bg);
+                color: var(--color-btn-text);
+            }
+
+            .slidebar-btn-secondary:hover {
+                background: var(--color-btn-hover-bg);
+            }
+
+            /* Horizontal scrolling */
+            /************************/
+
+            .slidebar-scrollable {
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+                text-overflow: initial !important;
+            }
+
+            .slidebar-scrollable::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .slidebar-scrollable::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .slidebar-scrollable::-webkit-scrollbar-thumb {
+                background: var(--color-border-muted);
+                border-radius: 2px;
+            }
+        `);
+    }
+
+    function log(message, level = 'log') {
+        if (level === 'error') {
+            console.error(`[${APP_NAME}]`, message);
+        } else {
+            console.log(`[${APP_NAME}]`, message);
+        }
+    }
+
+    function cleanup() {
+        if (currentObserver) {
+            currentObserver.disconnect();
+            currentObserver = null;
+        }
+        if (resizeCleanup) {
+            resizeCleanup();
+            resizeCleanup = null;
+        }
+
+        document
+            .querySelectorAll('.slidebar-resize-handle, .slidebar-config-btn')
+            .forEach((el) => el.remove());
+
+        isInitialized = false;
+        configButtonAdded = false;
+        initAttempts = 0;
+        configButtonAttempts = 0;
+    }
 
     function init() {
+        if (isInitialized) return;
+
+        if (initAttempts >= MAX_INIT_ATTEMPTS) {
+            log('Max initialization attempts reached. Giving up.', 'error');
+            return;
+        }
+
+        initAttempts++;
+
         const diffLayout = document.getElementById('diff-layout-component');
         if (!diffLayout) {
-            log('diff-layout-component not found, trying again in 1 second');
+            log(`Attempt ${initAttempts}: diff-layout not found, retrying...`);
             setTimeout(init, 1000);
             return;
         }
@@ -46,289 +280,391 @@
         );
 
         if (!sidebarContainer || !mainContainer) {
-            log(
-                'sidebar or main container not found, trying again in 1 second'
-            );
+            log(`Attempt ${initAttempts}: containers not found, retrying...`);
             setTimeout(init, 1000);
             return;
         }
 
-        addConfigInterface(sidebarContainer);
-        applySidebarWidth(sidebarContainer, config.sidebarWidth);
+        isInitialized = true;
+        initAttempts = 0;
 
+        applySidebarWidth(sidebarContainer, config.sidebarWidth);
+        addConfigButton(sidebarContainer);
+
+        // Set up features
         if (config.enableResizing) {
-            addResizeHandle(diffLayout, sidebarContainer, mainContainer);
+            resizeCleanup = addResizeHandle(diffLayout, sidebarContainer);
         }
         if (config.enableTooltips) {
             addTooltips(sidebarContainer);
+        } else {
+            removeTooltips(sidebarContainer);
         }
         if (config.enableHorizontalScroll) {
-            addHorizontalScroll(sidebarContainer);
+            enableHorizontalScroll(sidebarContainer);
+        } else {
+            disableHorizontalScroll(sidebarContainer);
         }
 
-        log(`SlideBar initialized with config: ${JSON.stringify(config)}`);
+        // Observe for dynamic content
         observeForChanges(sidebarContainer);
+
+        // log has 2 parameters: message and level
+        let msg = `Initialized successfully with config:`;
+        msg += `\n- Resizing: ${config.enableResizing}`;
+        msg += `\n- Tooltips: ${config.enableTooltips}`;
+        msg += `\n- Horizontal Scroll: ${config.enableHorizontalScroll}`;
+        msg += `\n- Sidebar Width: ${config.sidebarWidth}px`;
+        msg += `\n- Min Width: ${config.minWidth}px`;
+        msg += `\n- Max Width: ${config.maxWidth}px`;
+        log(msg);
     }
 
-    function applySidebarWidth(sidebarContainer, width) {
-        if (typeof width !== 'number' || width < 200) {
-            log('Invalid width, using default 300px');
-            width = 300;
+    function applySidebarWidth(container, width) {
+        const clampedWidth = Math.max(
+            config.minWidth,
+            Math.min(config.maxWidth, width)
+        );
+        container.style.width = `${clampedWidth}px`;
+        container.style.minWidth = `${clampedWidth}px`;
+        container.style.flexBasis = `${clampedWidth}px`;
+    }
+
+    function addConfigButton(sidebarContainer) {
+        if (configButtonAdded) {
+            log('Config button already added, skipping.');
+            return;
         }
-        sidebarContainer.style = {
-            ...sidebarContainer.style,
-            width: `${width}px`,
-            minWidth: `${width}px`,
-            flexBasis: `${width}px`,
-        };
-        // sidebarContainer.style.width = `${width}px`;
-        // sidebarContainer.style.minWidth = `${width}px`;
-        // sidebarContainer.style.flexBasis = `${width}px`;
-        logWithDebounce(`Sidebar width set to ${width}px`, 1000);
-    }
+        const fileTreeToggle =
+            document.getElementsByTagName('file-tree-toggle')[0];
+        if (!fileTreeToggle) {
+            if (configButtonAttempts < 5) {
+                configButtonAttempts++;
+                log(
+                    `Attempt ${configButtonAttempts}: file tree toggle not found, retrying...`
+                );
+                setTimeout(() => addConfigButton(sidebarContainer), 1000);
+            } else {
+                log(
+                    'File tree toggle not found after multiple attempts, giving up.',
+                    'error'
+                );
+            }
+            return;
+        }
+        const parent = fileTreeToggle.parentElement;
+        if (!parent) {
+            log(
+                'Parent element for file tree toggle not found, cannot add config button.',
+                'error'
+            );
+            return;
+        }
+        if (parent.querySelector('.slidebar-config-btn')) {
+            log('Config button already exists in the parent, skipping.');
+            return;
+        }
 
-    function log(message) {
-        console.log('SlideBar:', message);
-    }
-
-    function logWithDebounce(message, delay) {
-        let timeout;
-        return function () {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                log(message);
-            }, delay);
-        };
-    }
-
-    function addResizeHandle(diffLayout, sidebarContainer, mainContainer) {
-        const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'ghsb-resize-handle';
-        resizeHandle.style.cssText = `
-            position: absolute;
-            width: 8px;
-            height: 100%;
-            cursor: col-resize;
-            z-index: 100;
-            background: transparent;
+        const button = document.createElement('button');
+        button.className = 'slidebar-config-btn';
+        button.setAttribute('aria-label', 'Slidebar settings');
+        button.setAttribute('title', 'Slidebar settings');
+        button.type = 'button';
+        button.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="16" height="16">
+                <path fill="currentColor" d="M224,0H32C14.43,0,0,14.43,0,32v192c0,17.57,14.43,32,32,32h192c17.57,0,32-14.43,32-32V32c0-17.57-14.43-32-32-32ZM223.93,216.59H31.93v-32.92h192.13l-.13,32.92ZM224.07,177.67h-28.38v-26.79l28.38.02v26.77ZM223.93,144.38H31.93v-32.92h192.13l-.13,32.92ZM31.93,105.84v-26.79l28.38.02v26.77h-28.38ZM223.93,72.33H31.93v-32.92h192.13l-.13,32.92Z"/>
+            </svg>
         `;
 
-        updateHandlePosition(resizeHandle, sidebarContainer);
+        button.addEventListener('click', showConfigModal);
+        parent.insertBefore(button, fileTreeToggle.nextSibling);
+        configButtonAdded = true;
+        log('Config button added successfully');
+    }
 
+    function addResizeHandle(diffLayout, sidebarContainer) {
+        // Remove any existing handle
+        diffLayout.querySelector('.slidebar-resize-handle')?.remove();
+
+        const handle = document.createElement('div');
+        handle.className = 'slidebar-resize-handle';
+
+        function updatePosition() {
+            const rect = sidebarContainer.getBoundingClientRect();
+            const parentRect = diffLayout.getBoundingClientRect();
+            handle.style.left = `${rect.right - parentRect.left - 2}px`;
+        }
+
+        updatePosition();
         diffLayout.style.position = 'relative';
-        diffLayout.appendChild(resizeHandle);
+        diffLayout.appendChild(handle);
 
-        // Set up drag functionality
         let startX, startWidth;
 
-        resizeHandle.addEventListener('mousedown', function (e) {
-            startX = e.clientX;
-            startWidth = parseInt(
-                document.defaultView.getComputedStyle(sidebarContainer).width,
-                10
-            );
-            document.documentElement.addEventListener('mousemove', resizeMove);
-            document.documentElement.addEventListener('mouseup', resizeEnd);
-            e.preventDefault();
-        });
+        function onMouseDown(e) {
+            if (e.button !== 0) return; // Only left click
 
-        function resizeMove(e) {
-            // Only proceed if the left mouse button (and nothing else) is pressed
+            startX = e.clientX;
+            startWidth = parseInt(getComputedStyle(sidebarContainer).width, 10);
+            handle.classList.add('dragging');
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+        }
+
+        function onMouseMove(e) {
             if (e.buttons !== 1) {
-                resizeEnd();
+                onMouseUp();
                 return;
             }
-            const newWidth = Math.max(200, startWidth + (e.clientX - startX));
-            applySidebarWidth(sidebarContainer, newWidth);
-            updateHandlePosition(resizeHandle, sidebarContainer);
-            config.sidebarWidth = newWidth; // This gets persisted later in resizeEnd
-        }
 
-        function resizeEnd() {
-            document.documentElement.removeEventListener(
-                'mousemove',
-                resizeMove
+            const newWidth = Math.max(
+                config.minWidth,
+                Math.min(config.maxWidth, startWidth + (e.clientX - startX))
             );
-            document.documentElement.removeEventListener('mouseup', resizeEnd);
-            GM_setValue('slidebarConfig', config);
+            applySidebarWidth(sidebarContainer, newWidth);
+            updatePosition();
+        }
+
+        function onMouseUp() {
+            handle.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            const finalWidth = parseInt(
+                getComputedStyle(sidebarContainer).width,
+                10
+            );
+            if (finalWidth !== config.sidebarWidth) {
+                config.sidebarWidth = finalWidth;
+                GM_setValue(STORAGE_KEY, config);
+                log(`Saved new width: ${finalWidth}px`);
+            }
+        }
+
+        handle.addEventListener('mousedown', onMouseDown);
+
+        return () => {
+            handle.removeEventListener('mousedown', onMouseDown);
+            handle.remove();
+        };
+    }
+
+    function addTooltips(container) {
+        const truncated = container.querySelectorAll(
+            '.ActionList-item-label--truncate'
+        );
+        let added = 0;
+
+        truncated.forEach((el) => {
+            if (el.scrollWidth > el.clientWidth && !el.hasAttribute('title')) {
+                el.setAttribute('title', el.textContent.trim());
+                added++;
+            }
+        });
+
+        if (added > 0) {
+            log(`Added tooltips to ${added} truncated items`);
         }
     }
 
-    function updateHandlePosition(handle, sidebarContainer) {
-        handle.style.left = `${
-            sidebarContainer.getBoundingClientRect().width
-        }px`;
-    }
-
-    function addTooltips(sidebarContainer) {
-        log('Adding tooltips to truncated items...');
-        // Find all truncated elements
-        const truncatedElements = sidebarContainer.querySelectorAll(
-            '.ActionList-item-label--truncate'
-        );
-        log(`Found ${truncatedElements.length} truncated items`);
-        truncatedElements.forEach((element) => {
-            // Only add title attribute if the text is truncated
-            if (element.scrollWidth > element.clientWidth) {
-                // Get the full text content
-                const fullText = element.textContent.trim();
-                element.setAttribute('title', fullText);
-                log(`Added tooltip to: ${fullText}`);
-            }
+    function removeTooltips(container) {
+        const items = container.querySelectorAll('.ActionList-item-label');
+        items.forEach((el) => {
+            el.removeAttribute('title');
         });
+        log(`Removed tooltips from ${items.length} items`);
     }
 
-    function addHorizontalScroll(sidebarContainer) {
-        const truncatedElements = sidebarContainer.querySelectorAll(
+    function enableHorizontalScroll(container) {
+        const truncated = container.querySelectorAll(
             '.ActionList-item-label--truncate'
         );
 
-        truncatedElements.forEach((element) => {
-            // Override truncation styles
-            element.style.whiteSpace = 'pre';
-            element.style.overflow = 'auto';
-            element.style.textOverflow = 'initial';
-
-            // Prevent scrollbars when not needed
-            if (element.scrollWidth <= element.clientWidth) {
-                element.style.overflowX = 'hidden';
-            }
+        truncated.forEach((el) => {
+            el.classList.add('slidebar-scrollable');
         });
     }
 
-    function observeForChanges(sidebarContainer) {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                // If new nodes are added
-                if (mutation.type === 'childList') {
-                    if (config.enableTooltips) {
-                        addTooltips(sidebarContainer);
-                    }
-                    if (config.enableHorizontalScroll) {
-                        addHorizontalScroll(sidebarContainer);
-                    }
+    function disableHorizontalScroll(container) {
+        const items = container.querySelectorAll('.slidebar-scrollable');
+        // Some items may have been scrolled and would be stuck partially visible
+        // unless we set scrollLeft to 0
+        items.forEach((el) => {
+            el.scrollLeft = 0;
+            el.classList.remove('slidebar-scrollable');
+        });
+    }
+
+    function observeForChanges(container) {
+        if (currentObserver) {
+            currentObserver.disconnect();
+        }
+
+        currentObserver = new MutationObserver((mutations) => {
+            const hasRelevantChanges = mutations.some(
+                (m) => m.type === 'childList' && m.addedNodes.length > 0
+            );
+
+            if (hasRelevantChanges) {
+                if (config.enableTooltips) {
+                    addTooltips(container);
+                } else {
+                    removeTooltips(container);
                 }
-            });
+                if (config.enableHorizontalScroll) {
+                    enableHorizontalScroll(container);
+                } else {
+                    disableHorizontalScroll(container);
+                }
+            }
         });
 
-        observer.observe(sidebarContainer, { childList: true, subtree: true });
-    }
-
-    function addConfigInterface(sidebarContainer) {
-        const filterBar = sidebarContainer.querySelector('.SelectMenu-filter');
-        if (!filterBar) return;
-
-        const configButton = document.createElement('button');
-        configButton.className = 'sidebar-enhancer-config-btn';
-        configButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path fill-rule="evenodd" d="M7.429 1.525a6.593 6.593 0 011.142 0c.036.003.108.036.137.146l.289 1.105c.147.56.55.967.997 1.189.174.086.341.183.501.29.417.278.97.423 1.53.27l1.102-.303c.11-.03.175.016.195.046.219.31.41.641.573.989.014.031.022.11-.059.19l-.815.806c-.411.406-.562.957-.53 1.456a4.588 4.588 0 010 .582c-.032.499.119 1.05.53 1.456l.815.806c.08.08.073.159.059.19a6.494 6.494 0 01-.573.99c-.02.029-.086.074-.195.045l-1.103-.303c-.559-.153-1.112-.008-1.529.27-.16.107-.327.204-.5.29-.449.222-.851.628-.998 1.189l-.289 1.105c-.029.11-.101.143-.137.146a6.613 6.613 0 01-1.142 0c-.036-.003-.108-.037-.137-.146l-.289-1.105c-.147-.56-.55-.967-.997-1.189a4.502 4.502 0 01-.501-.29c-.417-.278-.97-.423-1.53-.27l-1.102.303c-.11.03-.175-.016-.195-.046a6.492 6.492 0 01-.573-.989c-.014-.031-.022-.11.059-.19l.815-.806c.411-.406.562-.957.53-1.456a4.587 4.587 0 010-.582c.032-.499-.119-1.05-.53-1.456l-.815-.806c-.08-.08-.073-.159-.059-.19a6.44 6.44 0 01.573-.99c.02-.029.086-.075.195-.045l1.103.303c.559.153 1.112.008 1.529-.27.16-.107.327-.204.5-.29.449-.222.851-.628.998-1.189l.289-1.105c.029-.11.101-.143.137-.146zM8 0c-.236 0-.47.01-.701.03-.743.065-1.29.615-1.458 1.261l-.29 1.106c-.017.066-.078.158-.211.224a5.994 5.994 0 00-.668.386c-.123.082-.233.09-.3.071L3.27 2.776c-.644-.177-1.392.02-1.82.63a7.977 7.977 0 00-.704 1.217c-.315.675-.111 1.422.363 1.891l.815.806c.05.048.098.147.088.294a6.084 6.084 0 000 .772c.01.147-.038.246-.088.294l-.815.806c-.474.469-.678 1.216-.363 1.891.2.428.436.835.704 1.218.428.609 1.176.806 1.82.63l1.103-.303c.066-.019.176-.011.299.071.213.143.436.272.668.386.133.066.194.158.212.224l.289 1.106c.169.646.715 1.196 1.458 1.26a8.094 8.094 0 001.402 0c.743-.064 1.29-.614 1.458-1.26l.29-1.106c.017-.066.078-.158.211-.224a5.98 5.98 0 00.668-.386c.123-.082.233-.09.3-.071l1.102.302c.644.177 1.392-.02 1.82-.63.268-.382.505-.789.704-1.217.315-.675.111-1.422-.364-1.891l-.814-.806c-.05-.048-.098-.147-.088-.294a6.1 6.1 0 000-.772c-.01-.147.039-.246.088-.294l.814-.806c.475-.469.679-1.216.364-1.891a7.992 7.992 0 00-.704-1.218c-.428-.609-1.176-.806-1.82-.63l-1.103.303c-.066.019-.176.011-.299-.071a5.991 5.991 0 00-.668-.386c-.133-.066-.194-.158-.212-.224L10.16 1.29C9.99.645 9.444.095 8.701.031A8.094 8.094 0 008 0zm1.5 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11 8a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`;
-        configButton.style.cssText = `
-            background: none;
-            border: none;
-            padding: 5px;
-            cursor: pointer;
-            color: #6e7781;
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        `;
-        filterBar.style.position = 'relative';
-        filterBar.appendChild(configButton);
-        configButton.addEventListener('click', showConfigModal);
+        currentObserver.observe(container, {
+            childList: true,
+            subtree: true,
+        });
     }
 
     function showConfigModal() {
-        const modalOverlay = document.createElement('div');
-        modalOverlay.className = 'sidebar-enhancer-modal-overlay';
-        modalOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
+        const overlay = document.createElement('div');
+        overlay.className = 'slidebar-modal-overlay';
 
         const modal = document.createElement('div');
-        modal.className = 'sidebar-enhancer-modal';
-        modal.style.cssText = `
-            background: white;
-            border-radius: 6px;
-            padding: 20px;
-            min-width: 300px;
-            max-width: 400px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        `;
+        modal.className = 'slidebar-modal select-menu-modal';
 
         modal.innerHTML = `
-            <h3 style="margin-top: 0; border-bottom: 1px solid #e1e4e8; padding-bottom: 10px;">
+            <div class="slidebar-modal-header">
                 Slidebar Settings
-            </h3>
-            <div style="margin-bottom: 15px;">
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="enableResizing" ${
+            </div>
+            <div class="slidebar-modal-body">
+                <label class="slidebar-checkbox-label">
+                    <input type="checkbox" id="slidebar-opt-resize" ${
                         config.enableResizing ? 'checked' : ''
                     }>
-                    <span style="margin-left: 8px;">Enable Sidebar Resizing</span>
+                    <div class="slidebar-checkbox-text">
+                        <div class="slidebar-checkbox-title">Enable Sidebar Resizing</div>
+                        <div class="slidebar-checkbox-desc">Drag the edge to resize the file tree</div>
+                    </div>
                 </label>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="enableTooltips" ${
+
+                <label class="slidebar-checkbox-label">
+                    <input type="checkbox" id="slidebar-opt-tooltips" ${
                         config.enableTooltips ? 'checked' : ''
                     }>
-                    <span style="margin-left: 8px;">Show Tooltips on Truncated Items</span>
+                    <div class="slidebar-checkbox-text">
+                        <div class="slidebar-checkbox-title">Show Tooltips</div>
+                        <div class="slidebar-checkbox-desc">Display full names on hover for truncated files</div>
+                    </div>
                 </label>
-                <label style="display: flex; align-items: center; margin-bottom: 15px;">
-                    <input type="checkbox" id="enableHorizontalScroll" ${
+
+                <label class="slidebar-checkbox-label">
+                    <input type="checkbox" id="slidebar-opt-scroll" ${
                         config.enableHorizontalScroll ? 'checked' : ''
                     }>
-                    <span style="margin-left: 8px;">Enable Horizontal Scrolling</span>
+                    <div class="slidebar-checkbox-text">
+                        <div class="slidebar-checkbox-title">Horizontal Scrolling</div>
+                        <div class="slidebar-checkbox-desc">Allow scrolling long file names instead of truncating</div>
+                    </div>
                 </label>
-                <label style="display: block; margin-bottom: 10px;">
-                    <span>Sidebar Width:</span>
-                    <input type="number" id="sidebarWidth" value="${
-                        config.sidebarWidth
-                    }" style="width: 80px; margin-left: 8px;">px
-                </label>
+
+                <div class="slidebar-width-control">
+                    <label for="slidebar-width">Sidebar Width:</label>
+                    <input type="number" id="slidebar-width" class="slidebar-width-input"
+                           value="${config.sidebarWidth}" min="${
+            config.minWidth
+        }" max="${config.maxWidth}">
+                    <span>px</span>
+                </div>
             </div>
-            <div style="display: flex; justify-content: flex-end; border-top: 1px solid #e1e4e8; padding-top: 15px;">
-                <button id="cancelConfig" style="margin-right: 10px; padding: 5px 12px; background: #f6f8fa; border: 1px solid rgba(27, 31, 36, 0.15); border-radius: 6px; cursor: pointer;">
-                    Cancel
-                </button>
-                <button id="saveConfig" style="padding: 5px 12px; background: #2da44e; color: white; border: 1px solid rgba(27, 31, 36, 0.15); border-radius: 6px; cursor: pointer;">
-                    Save
-                </button>
+            <div class="slidebar-modal-footer">
+                <button class="slidebar-btn slidebar-btn-secondary" id="slidebar-cancel">Cancel</button>
+                <button class="slidebar-btn slidebar-btn-primary" id="slidebar-save">Save Changes</button>
             </div>
         `;
 
-        modalOverlay.appendChild(modal);
-        document.body.appendChild(modalOverlay);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Focus management
+        const firstInput = modal.querySelector('input');
+        firstInput?.focus();
+
+        function close() {
+            overlay.remove();
+        }
+
+        function save() {
+            config.enableResizing = document.getElementById(
+                'slidebar-opt-resize'
+            ).checked;
+            config.enableTooltips = document.getElementById(
+                'slidebar-opt-tooltips'
+            ).checked;
+            config.enableHorizontalScroll = document.getElementById(
+                'slidebar-opt-scroll'
+            ).checked;
+            config.sidebarWidth =
+                parseInt(document.getElementById('slidebar-width').value, 10) ||
+                config.sidebarWidth;
+
+            GM_setValue(STORAGE_KEY, config);
+            close();
+
+            // Reinitialize with new settings
+            cleanup();
+            init();
+        }
+
+        // Event handlers
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
 
         document
-            .getElementById('cancelConfig')
-            .addEventListener('click', () => {
-                document.body.removeChild(modalOverlay);
-            });
+            .getElementById('slidebar-cancel')
+            .addEventListener('click', close);
+        document
+            .getElementById('slidebar-save')
+            .addEventListener('click', save);
 
-        document.getElementById('saveConfig').addEventListener('click', () => {
-            config.enableResizing =
-                document.getElementById('enableResizing').checked;
-            config.enableTooltips =
-                document.getElementById('enableTooltips').checked;
-            config.enableHorizontalScroll = document.getElementById(
-                'enableHorizontalScroll'
-            ).checked;
-            config.sidebarWidth = parseInt(
-                document.getElementById('sidebarWidth').value,
-                10
-            );
-
-            GM_setValue('slidebarConfig', config);
-            document.body.removeChild(modalOverlay);
-            window.location.reload();
+        // Keyboard handling
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close();
+            } else if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                save();
+            }
         });
     }
+
+    // Handle SPA navigation
+    function handleNavigation() {
+        cleanup();
+
+        // Check if we're still on a PR page
+        if (location.pathname.match(/\/(pull|pulls|compare)\//)) {
+            setTimeout(init, 500);
+        }
+    }
+
+    // Initialize
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // Listen for GitHub's SPA navigation
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+        const url = location.href;
+        if (url !== lastUrl) {
+            lastUrl = url;
+            handleNavigation();
+        }
+    }).observe(document, { subtree: true, childList: true });
 })();
