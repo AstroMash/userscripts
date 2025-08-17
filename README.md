@@ -11,6 +11,7 @@ I use Tampermonkey so... these are only tested on that. Your mileage may vary wi
 ## The scripts
 
 - [CodePen.md - Copy as Markdown](/scripts/codepen-md/) - One-click (or hotkey) CodePen→Markdown: HTML/CSS/JS fences with optional attribution; raw or compiled output (SCSS→CSS, TS/Babel→JS); customizable shortcut; persistent preferences.
+- [Slidebar - GitHub PR Sidebar Enhancer](/scripts/github-slidebar/) - Resize the GitHub sidebar on PRs and compare pages; horizontal scrolling; tooltips for truncated file paths; persistent preferences.
 
 ## Names I almost used for this repo
 
