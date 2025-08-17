@@ -17,7 +17,6 @@ I use Tampermonkey so... these are only tested on that. Your mileage may vary wi
 - Confuserscripts 🤨
 - Abuserscripts 👾
 - Misuserscripts 🚩
-- patch-adams.js 🩹
 
 ## External profiles
 

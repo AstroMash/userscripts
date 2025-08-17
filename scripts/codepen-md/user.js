@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         CodePen.md - Copy as Markdown
-// @namespace    https://stash.foort.cloud/userscripts
+// @namespace    https://github.com/AstroMash/userscripts
 // @version      2.3.0
 // @description  One-click (or hotkey) CodePen→Markdown: HTML/CSS/JS fences with optional attribution; raw or compiled output (SCSS→CSS, TS/Babel→JS); customizable shortcut; persistent preferences.
 // @author       AstroMash
@@ -14,9 +14,9 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 // @license      MIT
-// @icon         https://stash.foort.cloud/userscripts/codepen-md/icon.png
-// @downloadURL  https://stash.foort.cloud/userscripts/codepen-md/user.js
-// @updateURL    https://stash.foort.cloud/userscripts/codepen-md/meta.js
+// @icon         https://raw.githubusercontent.com/astromash/userscripts/main/scripts/codepen-md/icon.png
+// @downloadURL  https://raw.githubusercontent.com/astromash/userscripts/main/scripts/codepen-md/user.js
+// @updateURL    https://raw.githubusercontent.com/astromash/userscripts/main/scripts/codepen-md/meta.js
 // ==/UserScript==
 
 (function () {
