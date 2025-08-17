@@ -119,4 +119,5 @@ Click the [Slidebar icon](icon.png) in the toolbar to open the settings modal.
 ---
 
 **Slidebar** — Because GitHub has better things to do
+
 _Trunc' popped by AstroMash_
