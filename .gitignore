@@ -1,5 +1,6 @@
 # Mac junk
 .DS_Store
 
-# Local history
+# Local stuff
 .history/
+.local-only/
